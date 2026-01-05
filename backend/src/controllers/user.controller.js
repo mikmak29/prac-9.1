@@ -4,18 +4,31 @@ import jwt from "jsonwebtoken";
 
 dotenv.config();
 
-const constants = [
-	{
-		name: "akim",
-		email: "akim@gmail.com",
-	},
-	{
-		name: "akim2",
-		email: "akim2@gmail.com",
-	},
-];
+export const registerUser = asyncErrorHandler(async (req, res) => {
+	const { name, email } = req.body;
 
-export const userLogIn = asyncErrorHandler(async (req, res) => {
+	if (!name || !email) {
+		return res.status(404).json("Both Name and Email are mandatory to fill.");
+	}
+
+	const data = constants.push({
+		name,
+		email,
+	});
+
+	console.log({ createdData: data });
+	console.log(constants);
+
+	res.status(200).json(data);
+});
+
+export const logInUser = asyncErrorHandler(async (req, res) => {
+	const { name, email } = req.body;
+
+	if (!name || !email) {
+		return res.status(404).json("Wrong email!");
+	}
+
 	const accessToken = jwt.sign(
 		{
 			user: {
