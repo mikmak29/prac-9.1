@@ -4,7 +4,8 @@ import { authToken } from "../middlewares/authToken.js";
 
 const route = express.Router();
 
-route.route("/login").post(userController.userLogIn);
+route.route("/register").post(userController.registerUser);
+route.route("/login").post(userController.logInUser);
 route.route("/current").get(authToken, userController.current);
 
 export default route;
