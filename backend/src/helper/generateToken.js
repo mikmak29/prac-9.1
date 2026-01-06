@@ -3,8 +3,16 @@ import jwt from "jsonwebtoken";
 
 dotenv.config();
 
-export const generateToken = (user, expiresIn) => {
-	return jwt.sign(user, process.env.REFRESH_TOKEN_ACCESS_KEY, {
-		expiresIn: expiresIn,
+// Generate access token with configurable expiration
+export const generateToken = (user) => {
+	return jwt.sign({ user }, process.env.PRIVATE_ACCESS_TOKEN_KEY, {
+		expiresIn: "30s",
+	});
+};
+
+// Generate refresh token with separate expiration (longer than access token)
+export const generateRefreshToken = (userPayload) => {
+	return jwt.sign(userPayload, process.env.PRIVATE_REFRESH_ACCESS_TOKEN_KEY, {
+		expiresIn: "7d", // Refresh token expires in 7 days
 	});
 };

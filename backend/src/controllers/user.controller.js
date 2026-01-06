@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 
 import User from "../models/UserModel.js";
 import UsersToken from "../models/UsersTokenModel.js";
-import { generateToken } from "../helper/generateToken.js";
+import { generateToken, generateRefreshToken } from "../helper/generateToken.js";
 
 dotenv.config();
 
@@ -15,8 +15,12 @@ export const registerUser = asyncErrorHandler(async (req, res) => {
 		return res.status(404).json("Fields are mandatory to fill.");
 	}
 
-	if (email) {
-		return res.status(404).json("This email is already used.");
+	const validatePassword = await User.findOne({ password });
+
+	const ownedEmail = validatePassword;
+
+	if (validatePassword) {
+		return res.status(404).json({ message: `This password was already used by ${ownedEmail.email}` });
 	}
 
 	const registerData = await User.create({
@@ -46,10 +50,11 @@ export const logInUser = asyncErrorHandler(async (req, res) => {
 		password: user.password,
 	};
 
-	const accessToken = jwt.sign({ user: userPayload }, process.env.PRIVATE_ACCESS_KEY, {
-		expiresIn: "30s",
-	});
-	const refreshToken = generateToken(userPayload, "7d");
+	// Access token with shorter expiration (e.g., 15 minutes)
+	const accessToken = generateToken(userPayload);
+
+	// Refresh token with longer expiration (e.g., 7 days)
+	const refreshToken = generateRefreshToken(userPayload);
 
 	const token = {
 		userId: user._id,
@@ -67,6 +72,7 @@ export const logInUser = asyncErrorHandler(async (req, res) => {
 
 export const token = asyncErrorHandler(async (req, res) => {
 	const { refreshToken } = req.body;
+
 	if (!refreshToken) return res.status(401).json({ message: "Invalid or expired token." });
 	const validateUserId = await UsersToken.findOne({ refreshToken });
 
@@ -74,22 +80,37 @@ export const token = asyncErrorHandler(async (req, res) => {
 		return res.status(401).json({ message: "Token not found." });
 	}
 
-	jwt.verify(refreshToken, process.env.REFRESH_TOKEN_ACCESS_KEY, (err, decoded) => {
+	jwt.verify(refreshToken, process.env.PRIVATE_REFRESH_ACCESS_TOKEN_KEY, (err, decoded) => {
 		if (err) {
 			return res.status(404).json({ message: "Invalid or expired token." });
 		}
+		// The decoded payload IS the userPayload (id, email, password)
+		// Pass the full userPayload to generateToken to maintain consistency with logInUser
 		const userPayload = {
 			id: decoded.id,
 			email: decoded.email,
+			password: decoded.password,
 		};
-		const newAccessToken = jwt.sign({ user: userPayload }, process.env.PRIVATE_ACCESS_KEY, {
-			expiresIn: "15m",
-		});
-		res.status(200).json({ accessToken: newAccessToken });
+
+		// Generate new access token with same expiration as login (or different if needed)
+		const accessToken = generateToken(userPayload);
+		res.status(200).json({ token: accessToken });
 	});
 });
 
 export const current = asyncErrorHandler(async (req, res) => {
 	console.log(req.user); // Working!
 	res.status(200).json(req.user);
+});
+
+export const deleteToken = asyncErrorHandler(async (req, res) => {
+	const { id } = req.params;
+
+	if (!id) {
+		return res.status(404).json({ message: "ID was not found." });
+	}
+
+	const removeToken = await UsersToken.findByIdAndDelete(id);
+
+	res.status(200).json({ successfully: removeToken });
 });
