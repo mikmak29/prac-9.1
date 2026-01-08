@@ -8,6 +8,8 @@ route.route("/token").post(userController.token);
 route.route("/register").post(userController.registerUser);
 route.route("/login").post(userController.logInUser);
 route.route("/current").get(authTokenCurrent, userController.current);
+route.route("/data").get(userController.usersData);
+route.route("/usersToken").get(userController.usersToken);
 route.route("/:id").delete(userController.deleteToken);
 
 export default route;

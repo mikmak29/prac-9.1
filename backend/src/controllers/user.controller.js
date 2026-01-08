@@ -64,6 +64,13 @@ export const logInUser = asyncErrorHandler(async (req, res) => {
 
 	await UsersToken.create(token);
 
+	res.cookie("refreshToken", refreshToken, {
+		httpOnly: true,
+		secure: true, // true in HTTPS
+		sameSite: "strict",
+		path: "/auth/refresh",
+	});
+
 	res.status(200).json({
 		accessToken: token.accessToken,
 		refreshToken: token.refreshToken,
@@ -101,6 +108,16 @@ export const token = asyncErrorHandler(async (req, res) => {
 export const current = asyncErrorHandler(async (req, res) => {
 	console.log(req.user); // Working!
 	res.status(200).json(req.user);
+});
+
+export const usersData = asyncErrorHandler(async (req, res) => {
+	const data = await User.find();
+	res.status(200).json(data);
+});
+
+export const usersToken = asyncErrorHandler(async (req, res) => {
+	const data = await UsersToken.find();
+	res.status(200).json(data);
 });
 
 export const deleteToken = asyncErrorHandler(async (req, res) => {
