@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import asyncErrorHandler from "express-async-handler";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 
 import User from "../models/UserModel.js";
 import UsersToken from "../models/UsersTokenModel.js";
@@ -15,17 +16,17 @@ export const registerUser = asyncErrorHandler(async (req, res) => {
 		return res.status(404).json("Fields are mandatory to fill.");
 	}
 
-	const validatePassword = await User.findOne({ password });
+	const validateEmail = await User.findOne({ email });
 
-	const ownedEmail = validatePassword;
-
-	if (validatePassword) {
-		return res.status(404).json({ message: `This password was already used by ${ownedEmail.email}` });
+	if (validateEmail) {
+		return res.status(404).json("This Email already exist.");
 	}
+
+	const hashedPassword = await bcrypt.hash(password, 10);
 
 	const registerData = await User.create({
 		email,
-		password,
+		password: hashedPassword,
 	});
 
 	res.status(200).json(registerData);
@@ -41,13 +42,18 @@ export const logInUser = asyncErrorHandler(async (req, res) => {
 	const user = await User.findOne({ email });
 
 	if (!user) {
-		return res.status(404).json("User not found!");
+		return res.status(404).json("Invalid Email.");
+	}
+
+	const validatePassword = await bcrypt.compare(password, user.password);
+
+	if (!validatePassword) {
+		return res.status(404).json("Invalid Password.");
 	}
 
 	const userPayload = {
 		id: user._id,
 		email: user.email,
-		password: user.password,
 	};
 
 	// Access token with shorter expiration (e.g., 15 minutes)
@@ -66,19 +72,19 @@ export const logInUser = asyncErrorHandler(async (req, res) => {
 
 	res.cookie("refreshToken", refreshToken, {
 		httpOnly: true,
-		secure: true, // true in HTTPS
+		secure: process.env.NODE_ENV === "production", // true only in HTTPS/production
 		sameSite: "strict",
-		path: "/auth/refresh",
+		path: "/api/user", // Match the route path where cookie will be read
 	});
 
 	res.status(200).json({
 		accessToken: token.accessToken,
-		refreshToken: token.refreshToken,
+		refreshToken: refreshToken,
 	});
 });
 
 export const token = asyncErrorHandler(async (req, res) => {
-	const { refreshToken } = req.body;
+	const refreshToken = req.cookies.refreshToken;
 
 	if (!refreshToken) return res.status(401).json({ message: "Invalid or expired token." });
 	const validateUserId = await UsersToken.findOne({ refreshToken });
@@ -96,7 +102,6 @@ export const token = asyncErrorHandler(async (req, res) => {
 		const userPayload = {
 			id: decoded.id,
 			email: decoded.email,
-			password: decoded.password,
 		};
 
 		// Generate new access token with same expiration as login (or different if needed)

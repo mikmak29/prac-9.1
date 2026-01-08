@@ -6,7 +6,7 @@ dotenv.config();
 // Generate access token with configurable expiration
 export const generateToken = (user) => {
 	return jwt.sign({ user }, process.env.PRIVATE_ACCESS_TOKEN_KEY, {
-		expiresIn: "30s",
+		expiresIn: "15m", // 15 minutes (reasonable expiration time)
 	});
 };
 
